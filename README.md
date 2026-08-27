@@ -96,6 +96,274 @@ services**, so installing `ai-posts` makes binding them mandatory even though
 |---|---|
 | `Core45\AiCore\Contracts\ProvidesMandatoryWords` | `Services\BlogTopics\BlogPostWriterService`, `Services\BlogTopics\BlogFaqWriterService`, `Services\BlogPipeline\Modules\DynamicContentModule` |
 | `Core45\AiCore\Contracts\ObservesAiContracts` | `Services\BlogPipeline\Modules\DynamicContentModule` |
+| `Core45\AiCore\Contracts\GeneratesSlugs` | `Jobs\BlogPipeline\AssemblePostJob`, `Jobs\BlogTopics\GenerateBlogPostJob`, `Jobs\BlogTopics\PlanProductSeriesJob`, `Services\BlogTopics\TopicSynthesisService`, `Services\BlogTopics\ManualTopicService` |
+| `Core45\AiCore\Contracts\GeneratesContentMedia` | `Services\PostContentRewriteService` |
+| `Core45\AiCore\Contracts\ChecksContentSimilarity` | `Services\BlogPipeline\QualityGateService` (constructor-injected, so `ModuleExecutor` — and anything that resolves it from the container — requires the binding too) |
+
+### Binding snippet
+
+A drop-in `AppServiceProvider::register()` for a fresh host. Every left-hand
+side above is unbound by both `AiPostsServiceProvider` and
+`AiCoreServiceProvider`; this is the complete list, nothing more.
+
+Two of them — `ChecksContentSimilarity` and `SearchResearchProvider` — already
+have a working implementation shipped in these packages, so the snippet binds
+straight to it. The rest (SERP search, keyword/rank-tracking/analytics
+providers, internal-link scanning/suggestion, URL resolution, link-enrichment
+delivery, mandatory-word lists, contract observability) have no shipped
+implementation — they wrap a specific host integration (SerpApi, Semrush,
+Wincher, Google Search Console, Bing Webmaster, …) or a host policy, so the
+class names below (`App\Services\Seo\...`, `App\AI\...`) are illustrative:
+create them in the host app, implementing the interface's real methods as
+listed in `src/Contracts/`.
+
+```php
+<?php
+
+declare(strict_types=1);
+
+namespace App\Providers;
+
+use App\AI\MandatoryWordList;                    // implements ProvidesMandatoryWords
+use App\Filament\Support\ContractObservationLog; // implements ObservesAiContracts
+use App\Services\Seo\BingWebmasterService;       // implements ProvidesBingQueryStats
+use App\Services\Seo\InternalLinkScannerService; // implements ScansInternalLinks
+use App\Services\Seo\InternalLinkSuggestionService; // implements SuggestsInternalLinks
+use App\Services\Seo\SearchConsoleService;       // implements ProvidesSearchAnalytics
+use App\Services\Seo\SemrushService;             // implements ProvidesKeywordMetrics
+use App\Services\Seo\SerpApiService;             // implements SearchesSerp
+use App\Services\Seo\SiteUrlResolverService;     // implements ResolvesUrlToModel
+use App\Services\Seo\WincherService;             // implements TracksKeywordRankings
+use App\Support\FilamentLinkReportNotifier;      // implements ReportsLinkEnrichment
+use Core45\AiCore\Contracts\ChecksContentSimilarity;
+use Core45\AiCore\Contracts\GeneratesContentMedia;
+use Core45\AiCore\Contracts\GeneratesSlugs;
+use Core45\AiCore\Contracts\ObservesAiContracts;
+use Core45\AiCore\Contracts\ProvidesMandatoryWords;
+use Core45\AiCore\Services\ContentSimilarityService;
+use Core45\AiPosts\Contracts\BlogTopics\SearchResearchProvider;
+use Core45\AiPosts\Contracts\Seo\ProvidesBingQueryStats;
+use Core45\AiPosts\Contracts\Seo\ProvidesKeywordMetrics;
+use Core45\AiPosts\Contracts\Seo\ProvidesSearchAnalytics;
+use Core45\AiPosts\Contracts\Seo\ProvidesTopicTrends;
+use Core45\AiPosts\Contracts\Seo\ReportsLinkEnrichment;
+use Core45\AiPosts\Contracts\Seo\ResolvesUrlToModel;
+use Core45\AiPosts\Contracts\Seo\ScansInternalLinks;
+use Core45\AiPosts\Contracts\Seo\SearchesSerp;
+use Core45\AiPosts\Contracts\Seo\SuggestsInternalLinks;
+use Core45\AiPosts\Contracts\Seo\TracksKeywordRankings;
+use Core45\AiPosts\Services\BlogTopics\GroundedSearchProvider;
+use Illuminate\Support\ServiceProvider;
+
+class AppServiceProvider extends ServiceProvider
+{
+    public function register(): void
+    {
+        // ai-core contract shipped with a working implementation — bind straight to it.
+        $this->app->bind(ChecksContentSimilarity::class, ContentSimilarityService::class);
+
+        // Host-authored: the app's own SlugGenerator (or Str::slug() wrapper).
+        $this->app->bind(GeneratesSlugs::class, fn () => new class implements GeneratesSlugs {
+            public function make(string $title): string
+            {
+                return \Illuminate\Support\Str::slug($title);
+            }
+        });
+
+        // Host-authored: attaches generated media (e.g. via spatie/medialibrary) to a rewritten record.
+        $this->app->bind(GeneratesContentMedia::class, \App\AI\MediaGenerationService::class);
+
+        // Host-authored: store-wide mandatory-word list fed into the AI prompt profile.
+        $this->app->bind(ProvidesMandatoryWords::class, MandatoryWordList::class);
+
+        // Host-authored: exit-window observability only — must never throw into a render path.
+        $this->app->bind(ObservesAiContracts::class, ContractObservationLog::class);
+
+        // ai-posts's own contract, shipped with four implementations
+        // (GroundedSearchProvider, SerpApiSearchProvider, CompositeSearchProvider,
+        // MockSearchProvider) in Services\BlogTopics — pick the one you want, or
+        // compose your own via CompositeSearchProvider.
+        $this->app->bind(SearchResearchProvider::class, GroundedSearchProvider::class);
+
+        // Host-authored SEO integrations — one class per third-party API.
+        $this->app->bind(SearchesSerp::class, SerpApiService::class);
+        $this->app->bind(ProvidesTopicTrends::class, SerpApiService::class); // same provider, different method set
+        $this->app->bind(ProvidesKeywordMetrics::class, SemrushService::class);
+        $this->app->bind(TracksKeywordRankings::class, WincherService::class);
+        $this->app->bind(ProvidesSearchAnalytics::class, SearchConsoleService::class);
+        $this->app->bind(ProvidesBingQueryStats::class, BingWebmasterService::class);
+        $this->app->bind(SuggestsInternalLinks::class, InternalLinkSuggestionService::class);
+        $this->app->bind(ScansInternalLinks::class, InternalLinkScannerService::class);
+        $this->app->bind(ResolvesUrlToModel::class, SiteUrlResolverService::class);
+        $this->app->bind(ReportsLinkEnrichment::class, FilamentLinkReportNotifier::class);
+    }
+}
+```
+
+### Configuration
+
+`config('ai.*')` keys this package's own code reads (all consumer-owned — none
+of them ship a value in `ai-core`'s `config/ai.php` beyond `assistant.enabled`,
+so a fresh host's own `config/ai.php` needs at least this much):
+
+```php
+<?php
+
+declare(strict_types=1);
+
+return [
+
+    // Registers the host models `Core45\AiCore\ModelRegistry` resolves for
+    // this package — see "Registered models" above for the full required key list.
+    'models' => [
+        'post' => \App\Models\Post::class,
+        'post_translation' => \App\Models\PostTranslation::class,
+        'user' => \App\Models\User::class,
+        'product' => \App\Models\Product::class,
+        'category' => \App\Models\ProductCategory::class,
+        'product_translation' => \App\Models\ProductTranslation::class,
+        'product_category_translation' => \App\Models\ProductCategoryTranslation::class,
+        'tag' => \App\Models\Tag::class,
+        'faq' => \App\Models\Faq::class,
+        'seo_indexable' => \App\Models\SeoIndexable::class,
+        'image_style' => \App\Models\ImageStyle::class,
+        'image_director_profile' => \App\Models\ImageDirectorProfile::class,
+        'content_archetype' => \App\Models\ContentArchetype::class,
+        'translation_lock' => \Core45\AiCore\Models\TranslationLock::class,
+    ],
+
+    'assistant' => [
+        // Master switch: with this off, ai-core-filament's four resources still
+        // route but 403 on canAccess().
+        'enabled' => true,
+
+        // Default per-call timeout (seconds) for AI calls this package makes
+        // when no more specific timeout below applies.
+        'timeout' => 300,
+
+        'timeouts' => [
+            // BlogPipeline module generation (ModuleExecutor, FeedbackAnalysisJob, ImproveModuleJob).
+            'module' => 480,
+            // QualityGateService's LLM judge pass.
+            'judge' => 45,
+            // AiLinkSuggestionService's internal-link suggestion call.
+            'linking' => 120,
+        ],
+
+        'content' => [
+            // Read by BlogPostWriterService when composing the writer prompt.
+            'brand_voice' => 'professional, direct, no filler',
+            // PostContentRewriteService: how much surrounding SEO context to send.
+            'seo_context_limit' => 5000,
+        ],
+
+        'blog_topics' => [
+            'images' => [
+                // Gates GenerateBlogImagesJob / BlogImageGeneratorService entirely.
+                'enabled' => true,
+            ],
+            'citation_guard' => [
+                // CitationGuardService: reject ungrounded claims instead of just flagging them.
+                'strict' => false,
+            ],
+            // ExternalLinkSafetyService: never link out to these domains.
+            'competitor_domains' => ['competitor-one.com', 'competitor-two.com'],
+            'research' => [
+                // ResearchService::generateQueries()
+                'max_queries_per_batch' => 8,
+                // TopicSynthesisService
+                'max_topics_per_batch' => 10,
+            ],
+        ],
+    ],
+
+];
+```
+
+`config('ai-posts.*')` — this package's own config, already merged with the
+defaults below by `AiPostsServiceProvider`; publish and override only the keys
+that differ from your host's taxonomy:
+
+```php
+<?php
+
+declare(strict_types=1);
+
+return [
+    'taxonomy' => [
+        'blog_post_type' => 2,
+        'default_post_category' => 1,
+        'faq_display_location' => 'none',
+    ],
+
+    'jobs' => [
+        // Optional host job class names — null disables the hand-off, each
+        // call site logs when it does. Left unset here on purpose: only wire
+        // the ones this host actually has.
+        'rate_limit_middleware' => null,
+        'humanize' => null,   // constructed with (Model $post, string $locale)
+        'analyze_seo' => null, // dispatched with (Model $seoIndexable)
+    ],
+
+    'filament' => [
+        'post_resource' => \App\Filament\Resources\Posts\PostResource::class,
+        'navigation_group' => 'Blog',
+    ],
+];
+```
+
+### Invoking the package
+
+Resolving and calling the two entry-point services, and dispatching the two
+standalone jobs — the same four classes `tests/PackageWiringTest.php` pins as
+the package's shipped entry points (plus `ResearchService`, covered by
+`PipelineOrchestratorService::start()` under the hood).
+
+```php
+<?php
+
+declare(strict_types=1);
+
+use Core45\AiPosts\Jobs\GeneratePostPhotosJob;
+use Core45\AiPosts\Jobs\TranslatePostToLocale;
+use Core45\AiPosts\Models\BlogTopicCandidate;
+use Core45\AiPosts\Models\BlogTopicProfile;
+use Core45\AiPosts\Services\BlogPipeline\PipelineOrchestratorService;
+use Core45\AiPosts\Services\PostContentRewriteService;
+
+// 1. Rewrite/generate a post's AI content and SEO fields in place.
+//    $post must implement Astrotomic\Translatable\Contracts\Translatable.
+$result = app(PostContentRewriteService::class)->processPost($post);
+// $result: array{model_id: int, processed_fields: array<string>, errors: array<string>}
+
+// Same service, with AI-generated media attached afterwards (GeneratesContentMedia).
+// 'enabled' is the switch processMediaGeneration() checks; 'rich_text_field' and
+// 'gallery_collection' are set internally and cannot be overridden from here.
+app(PostContentRewriteService::class)
+    ->withMediaGeneration(['enabled' => true])
+    ->processPost($post);
+
+// Translate one post's fields from one locale to another.
+app(PostContentRewriteService::class)->translateToLocale($post, 'en', 'es');
+
+// 2. Start a BlogPipeline run for an approved topic candidate: builds the
+//    config snapshot, creates the BlogPostPipelineRun, and dispatches the
+//    research batch (SearchConsoleInsightsJob, KeywordResearchJob, ...).
+$candidate = BlogTopicCandidate::find($candidateId);
+$profile = BlogTopicProfile::find($profileId);
+$run = app(PipelineOrchestratorService::class)->start($candidate, $profile);
+
+// 3. Dispatch translation and photo-generation as standalone queued jobs.
+TranslatePostToLocale::dispatch($post, 'en', 'de', auth()->id());
+
+GeneratePostPhotosJob::dispatch(
+    post: $post,
+    generateFeatured: true,
+    generateGallery: true,
+    generateInText: false,
+    replaceExisting: false,
+);
+```
 
 ### Registered models
 
