@@ -76,4 +76,36 @@ return [
         'analyze_seo' => env('AI_POSTS_ANALYZE_SEO_JOB'),
     ],
 
+    /*
+    |--------------------------------------------------------------------------
+    | Host-owned Filament resources the admin UI cross-links to
+    |--------------------------------------------------------------------------
+    |
+    | The topic-pipeline screens want to link out to the generated Post
+    | record, but `Post` and its Filament resource are host-owned — a package
+    | cannot import either. The host names its own Post resource class here.
+    |
+    | OPTIONAL and null by default. When unset (or the class does not exist),
+    | the "View Post" action is omitted entirely rather than rendered as a
+    | link to a route that isn't there.
+    */
+
+    'filament' => [
+        // FQCN of the host's Filament resource for its Post model, e.g.
+        // \App\Filament\Resources\Posts\PostResource::class.
+        //
+        // `Post` is a host model reached through `ai.models`, so no package can
+        // ship a resource for it. Naming the host's own resource here restores
+        // the cross-links from the blog screens to it; leaving it unset drops
+        // those links rather than rendering dead ones.
+        'post_resource' => env('AI_POSTS_FILAMENT_POST_RESOURCE'),
+
+        // Admin navigation group for every resource ai-posts-filament registers.
+        //
+        // Unset falls back to `ai.filament.navigation_group`, so an app that has
+        // already named one AI group gets the blog screens under it too. Set
+        // this only to give the blog its own group.
+        'navigation_group' => env('AI_POSTS_FILAMENT_NAVIGATION_GROUP'),
+    ],
+
 ];

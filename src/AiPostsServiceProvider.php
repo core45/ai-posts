@@ -24,6 +24,20 @@ class AiPostsServiceProvider extends ServiceProvider
         // top-level key loses everything beneath it. There is exactly one
         // top-level key here ('taxonomy') to keep that failure mode small.
         $this->mergeConfigFrom(__DIR__.'/../config/ai-posts.php', 'ai-posts');
+
+        // The pipeline reads `config('blog-pipeline.*')` in fourteen places —
+        // quality thresholds, retry limits, forbidden patterns, payload ceilings
+        // — but the package shipped no such file and never merged one. Every one
+        // of those reads fell back to its inline default in any app that had not
+        // written `config/blog-pipeline.php` by hand.
+        //
+        // Those defaults are not all the same. `summarization_max_words` reads
+        // 300 inline against 800 in this file, so an install without the file
+        // silently summarised to well under half the intended length — no error,
+        // just shorter content. That is the failure this merge prevents, and it
+        // is why the shipped file is the source of truth rather than a
+        // convenience.
+        $this->mergeConfigFrom(__DIR__.'/../config/blog-pipeline.php', 'blog-pipeline');
     }
 
     public function boot(): void

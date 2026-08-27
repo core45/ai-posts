@@ -10,6 +10,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 /**
+ * @property string $lesson_type
  * @property array<int>|null $source_feedback_ids
  */
 class BlogProfileLesson extends Model

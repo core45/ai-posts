@@ -13,6 +13,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 
 /**
  * @property BlogTopicBatchStatus $status
+ * @property string|null $error_message
  */
 class BlogTopicBatch extends Model
 {

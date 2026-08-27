@@ -11,16 +11,30 @@ use Core45\AiPosts\Enums\BlogTopicCandidateStatus;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Support\Carbon;
 
 /**
+ * @property string $title
+ * @property string $slug
+ * @property string|null $intent
+ * @property string|null $rationale
  * @property BlogTopicCandidateStatus $status
  * @property array<mixed>|null $outline_json
  * @property array<mixed>|null $evidence_json
  * @property array<mixed>|null $citations_json
  * @property array<mixed>|null $risk_flags_json
- * @property array{featured_image?: bool, gallery?: array{enabled: bool, count: int}, in_text?: array{enabled: bool, count: int}, style?: string|null}|null $image_config
+ * @property bool $humanize_content
+ * @property bool $generate_images
+ * @property array{featured_image?: bool, gallery?: array{enabled: bool, count: int}, in_text?: array{enabled: bool, count: int}, style?: string|null, profile_id?: int|null}|null $image_config
+ * @property bool $generate_faq
  * @property array{enabled: bool, count: int}|null $faq_config
+ * @property bool $enable_citations
+ * @property int|null $rank
+ * @property Carbon|null $approved_at
+ * @property Carbon|null $scheduled_publish_at
  * @property int|null $post_id
+ * @property int|null $pipeline_run_id
+ * @property int|null $batch_id
  */
 class BlogTopicCandidate extends Model
 {
