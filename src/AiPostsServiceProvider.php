@@ -39,8 +39,6 @@ class AiPostsServiceProvider extends ServiceProvider
         // is why the shipped file is the source of truth rather than a
         // convenience.
         $this->mergeConfigFrom(__DIR__.'/../config/blog-pipeline.php', 'blog-pipeline');
-
-        $this->registerPromptKeys();
     }
 
     /**
@@ -53,22 +51,24 @@ class AiPostsServiceProvider extends ServiceProvider
      */
     private function registerPromptKeys(): void
     {
-        $this->app->resolving(PromptKeyRegistry::class, static function (PromptKeyRegistry $registry): void {
-            $registry->registerMany([
-                'post_rewrite_system' => [
-                    'label' => 'Post Content Rewrite System Prompt',
-                    'template' => 'rewrite.field_rewrite',
-                ],
-                'post_seo_system' => [
-                    'label' => 'Post SEO Generation System Prompt',
-                    'template' => 'rewrite.seo_field',
-                ],
-            ]);
-        });
+        $registry = $this->app->make(PromptKeyRegistry::class);
+
+        $registry->registerMany([
+            'post_rewrite_system' => [
+                'label' => 'Post Content Rewrite System Prompt',
+                'template' => 'rewrite.field_rewrite',
+            ],
+            'post_seo_system' => [
+                'label' => 'Post SEO Generation System Prompt',
+                'template' => 'rewrite.seo_field',
+            ],
+        ]);
     }
 
     public function boot(): void
     {
+        $this->registerPromptKeys();
+
         // D5/§6.1: these migrations keep their ORIGINAL basenames from the
         // host tree. Laravel's Migrator keys the `migrations` ledger on
         // basename, not path, so an existing install already records every one

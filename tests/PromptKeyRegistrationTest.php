@@ -56,6 +56,29 @@ class PromptKeyRegistrationTest extends TestCase
     }
 
     /**
+     * The dropdown order CHANGED, and this pins the new one so it is a decision
+     * rather than a side effect.
+     *
+     * The old hand-maintained array interleaved domains: all six
+     * `*_rewrite_system` keys together, then all six `*_seo_system` keys. Order
+     * now follows provider boot order, so `ai-core`'s keys come first and then
+     * each package contributes its own block, rewrite and SEO together.
+     *
+     * That is the one thing about this change a user can see, and it is an
+     * improvement — the keys an operator can actually use are grouped by the
+     * feature they belong to. Recorded because the commit that moved the
+     * taxonomy claimed behaviour preservation, and this is the exception.
+     */
+    #[Test]
+    public function the_core_keys_come_first_and_this_package_appends_its_own(): void
+    {
+        $offered = array_keys(AIPromptOverride::availablePromptKeys());
+
+        $this->assertSame('admin_system', $offered[0]);
+        $this->assertSame(['post_rewrite_system', 'post_seo_system'], array_slice($offered, -2));
+    }
+
+    /**
      * The template is what the admin form previews the base prompt from. Both
      * blog keys route through phasea's rewrite templates, matching
      * `PostContentRewriteService`'s two override keys.
