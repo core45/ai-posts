@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Core45\AiPosts\Services\BlogPipeline;
 
+use Core45\AiCore\Contracts\UnconfiguredSeam;
 use Core45\AiPosts\Contracts\Seo\ResolvesUrlToModel;
 use Core45\AiPosts\Contracts\Seo\ScansInternalLinks;
 use Illuminate\Support\Facades\Log;
@@ -70,14 +71,26 @@ class LinkVerificationService
     {
         $scanResult = $this->linkScanner->scanContent($html, $appUrl);
 
-        foreach ($scanResult->internalLinks as $link) {
-            $url = $link['url'];
-            $resolved = $this->urlModelResolver->resolve($url);
+        // Same guard as InternalLinkEnricherService: an unconfigured resolver
+        // returns null for every URL, and treating that as "every link is
+        // broken" removes links from content rather than declining to judge
+        // them. See Core45\AiCore\Contracts\UnconfiguredSeam.
+        if (!$this->urlModelResolver instanceof UnconfiguredSeam) {
+            foreach ($scanResult->internalLinks as $link) {
+                $url = $link['url'];
+                $resolved = $this->urlModelResolver->resolve($url);
 
-            if ($resolved === null) {
-                $warnings[] = "Broken internal link removed: {$url}";
-                $html = $this->unwrapLink($html, $url);
+                if ($resolved === null) {
+                    $warnings[] = "Broken internal link removed: {$url}";
+                    $html = $this->unwrapLink($html, $url);
+                }
             }
+        } elseif ($scanResult->internalLinks !== []) {
+            $warnings[] = sprintf(
+                'Internal links left unchecked: no %s implementation is bound. %d link(s) skipped.',
+                ResolvesUrlToModel::class,
+                count($scanResult->internalLinks),
+            );
         }
 
         return $html;

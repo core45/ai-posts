@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Core45\AiPosts\Services\BlogTopics;
 
+use Core45\AiCore\Contracts\UnconfiguredSeam;
 use Core45\AiCore\ModelRegistry;
 use Core45\AiCore\Traits\LogsAIOperations;
 use Core45\AiPosts\Contracts\Seo\ResolvesUrlToModel;
@@ -43,14 +44,31 @@ class InternalLinkEnricherService
         $appUrl = (string) config('app.url');
         $scanResult = $this->linkScanner->scanContent($html, $appUrl);
 
-        foreach ($scanResult->internalLinks as $link) {
-            $href = $link['url'];
-            $resolved = $this->urlModelResolver->resolve($href);
+        // A resolver that cannot resolve ANYTHING is not evidence that every
+        // link is broken. `null` from a real resolver means "this URL points at
+        // no record I know", and removal is correct. `null` from the package's
+        // unconfigured default means "nobody asked me to know" — and acting on
+        // it strips editorial links out of a live post body. See
+        // Core45\AiCore\Contracts\UnconfiguredSeam.
+        if (!$this->urlModelResolver instanceof UnconfiguredSeam) {
+            foreach ($scanResult->internalLinks as $link) {
+                $href = $link['url'];
+                $resolved = $this->urlModelResolver->resolve($href);
 
-            if ($resolved === null) {
-                $warnings[] = "Broken internal link removed: {$href}";
-                $html = $this->unwrapLink($html, $href);
+                if ($resolved === null) {
+                    $warnings[] = "Broken internal link removed: {$href}";
+                    $html = $this->unwrapLink($html, $href);
+                }
             }
+        } elseif ($scanResult->internalLinks !== []) {
+            // Reported, not silent: skipping is the safe choice, but an operator
+            // who expected link verification should learn it did not happen.
+            $warnings[] = sprintf(
+                'Internal links left unchecked: no %s implementation is bound, so this application '
+                .'cannot tell a broken link from a valid one. %d link(s) skipped.',
+                ResolvesUrlToModel::class,
+                count($scanResult->internalLinks),
+            );
         }
 
         $this->logDebug('validateLinks - Completed', [
