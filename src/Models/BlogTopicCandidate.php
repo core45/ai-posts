@@ -30,6 +30,7 @@ use Illuminate\Support\Carbon;
  * @property array{enabled: bool, count: int}|null $faq_config
  * @property bool $enable_citations
  * @property int|null $rank
+ * @property int|null $approved_by
  * @property Carbon|null $approved_at
  * @property Carbon|null $scheduled_publish_at
  * @property int|null $post_id

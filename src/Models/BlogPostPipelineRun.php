@@ -14,9 +14,12 @@ use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 
 /**
+ * @property int $candidate_id
+ * @property int $profile_id
  * @property BlogPostPipelineStatus $status
  * @property int|null $post_id
  * @property string|null $current_step
+ * @property string $primary_locale
  * @property array<mixed>|null $context_json
  * @property array<mixed>|null $module_outputs
  * @property array<mixed>|null $research_data

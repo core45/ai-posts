@@ -9,6 +9,9 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
 /**
+ * @property string $slug
+ * @property string|null $system_prompt_template
+ * @property string|null $user_prompt_template
  * @property array<string, mixed>|null $quality_criteria
  * @property bool $is_built_in
  */

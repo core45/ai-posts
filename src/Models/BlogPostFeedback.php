@@ -12,6 +12,11 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Support\Carbon;
 
 /**
+ * @property string|null $module_slug
+ * @property int $rating
+ * @property string $feedback_type
+ * @property string $comment
+ * @property string $action_requested
  * @property Carbon|null $created_at
  * @property array<mixed>|null $ai_analysis
  */

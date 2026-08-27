@@ -11,7 +11,11 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 /**
  * @property string $lesson_type
+ * @property string $lesson_text
  * @property array<int>|null $source_feedback_ids
+ * @property float $confidence
+ * @property int $times_applied
+ * @property float|null $effectiveness_score
  */
 class BlogProfileLesson extends Model
 {

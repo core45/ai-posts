@@ -11,8 +11,12 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
 /**
+ * @property string $name
+ * @property array<mixed>|null $profile_json
  * @property list<string>|null $seed_keywords
  * @property list<string>|null $excluded_topics
+ * @property string|null $constraints
+ * @property string $primary_locale
  */
 class BlogTopicProfile extends Model
 {

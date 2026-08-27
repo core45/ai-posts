@@ -12,6 +12,9 @@ use Laravel\Scout\Searchable;
 
 /**
  * @property string $url
+ * @property string $domain
+ * @property string|null $title
+ * @property string $snippet
  */
 class BlogTopicSource extends Model
 {
