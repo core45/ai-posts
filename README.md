@@ -99,7 +99,7 @@ services**, so installing `ai-posts` makes binding them mandatory even though
 | `Core45\AiCore\Contracts\ProvidesMandatoryWords` | `Services\BlogTopics\BlogPostWriterService`, `Services\BlogTopics\BlogFaqWriterService`, `Services\BlogPipeline\Modules\DynamicContentModule` |
 | `Core45\AiCore\Contracts\ObservesAiContracts` | `Services\BlogPipeline\Modules\DynamicContentModule` |
 | `Core45\AiCore\Contracts\GeneratesSlugs` | `Jobs\BlogPipeline\AssemblePostJob`, `Jobs\BlogTopics\GenerateBlogPostJob`, `Jobs\BlogTopics\PlanProductSeriesJob`, `Services\BlogTopics\TopicSynthesisService`, `Services\BlogTopics\ManualTopicService` |
-| `Core45\AiCore\Contracts\GeneratesContentMedia` | `Services\PostContentRewriteService` |
+| `Core45\AiCore\Contracts\GeneratesContentMedia` | `Services\PostContentRewriteService` — **only** when media options were set; `PostContentRewriteService.php:482` is the sole resolution point and the plain rewrite path never reaches it. A host that does not generate media does not need this binding (proved by `tests/HostAppRewritesAPostEndToEndTest.php`, which never binds it). |
 | `Core45\AiCore\Contracts\ChecksContentSimilarity` | `Services\BlogPipeline\QualityGateService` (constructor-injected, so `ModuleExecutor` — and anything that resolves it from the container — requires the binding too) |
 
 ### Binding snippet
@@ -418,7 +418,7 @@ that needs the member.
 | --- | --- |
 | relations | `productCategory()`, `tags()`, `blogTopicCandidate()` |
 | methods | `translate()`, `translateOrNew()`, `getUrl()`, `getOrCreateSeoIndexable()` |
-| columns | `id`, `post_type_id`, `post_category_id`, `author` |
+| columns | `id`, `author`, and `post_type_id`/`post_category_id` **cast to backed enums exposing `label()`** — see below |
 
 `translate()`/`translateOrNew()` come from Astrotomic's `Translatable`;
 `getOrCreateSeoIndexable()` from `Core45\AiCore\Contracts\ProvidesSeoIndexable`.
@@ -440,6 +440,36 @@ Why a test and not just this list: every one of these calls sits behind a
 was, so without the test these would be invisible assumptions — which is
 precisely how a missing `productCategory` relation once killed the admin
 "AI Rewrite Content" action while every other gate stayed green.
+
+### Obligations the tables above do not state
+
+Four requirements are invisible in the contract and model tables, and each one
+below is an error `tests/HostAppRewritesAPostEndToEndTest.php` actually
+produced while a bare Testbench app was wired up from nothing.
+
+**`post_type_id` and `post_category_id` must be enum objects, not ints.**
+`buildModelContext()` calls `$postTypeId?->label()`
+(`PostContentRewriteService.php:296`), so a plain integer gives
+`Error: Call to a member function label() on int`. Null is fine — the code
+falls back to `'Post'`. Worse, `buildModelContext()` runs OUTSIDE
+`processModel()`'s per-field `try` blocks, so this kills the whole rewrite
+rather than degrading one field into `$results['errors']`.
+
+**`config('translatable.locales')` must be set.** `getLocales()` reads
+`config('translatable.locales', ['en'])`, but that default is unreachable:
+Astrotomic's own `Locales` throws `LocalesNotDefinedException` first.
+
+**The `posts` table must have `timestamps()`.** `saveTranslation()` calls
+`$model->touch()` for every class in `getTouchableModelClasses()`, so without
+`updated_at` every field fails with `no such column: updated_at`.
+
+**Faking the AI in your own tests means binding the CONCRETE
+`Core45\AiCore\Services\RemoteAiClient`, not the `AiClient` contract.**
+`AiClientFactory::for()` does `app()->make(RemoteAiClient::class)`
+(`AiClientFactory.php:22`). Binding the documented interface is inert on this
+path and lets real HTTP requests leave the process — which is how this was
+found, as five live calls returning
+`AI service rejected the request (status: 401)`.
 
 ### Foreign-key assumptions
 
