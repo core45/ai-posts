@@ -6,13 +6,14 @@ namespace Core45\AiPosts\Jobs;
 
 use Astrotomic\Translatable\Contracts\Translatable;
 use Core45\AiCore\Contracts\AiClient;
+use Core45\AiCore\Contracts\NotifiesOperator;
 use Core45\AiCore\Enums\AiSurface;
+use Core45\AiCore\Enums\NotificationSeverity;
 use Core45\AiCore\Exceptions\AiBudgetExceededException;
 use Core45\AiCore\Exceptions\AiRateLimitedException;
 use Core45\AiCore\ModelRegistry;
 use Core45\AiCore\Services\AiClientFactory;
 use Core45\AiPosts\Services\PostContentRewriteService;
-use Filament\Notifications\Notification;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Foundation\Queue\Queueable;
@@ -435,17 +436,11 @@ class TranslatePostToLocale implements ShouldQueue
             return;
         }
 
-        $notification = Notification::make()
-            ->title($title)
-            ->body($body);
-
-        $notification = match ($status) {
-            'success' => $notification->success(),
-            'warning' => $notification->warning(),
-            'danger' => $notification->danger(),
-            default => $notification->info(),
-        };
-
-        $notification->sendToDatabase($user);
+        app(NotifiesOperator::class)->notifyOperator(
+            $user,
+            $title,
+            $body,
+            NotificationSeverity::fromStatus($status),
+        );
     }
 }

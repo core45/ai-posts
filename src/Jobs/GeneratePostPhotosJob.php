@@ -6,15 +6,16 @@ namespace Core45\AiPosts\Jobs;
 
 use Astrotomic\Translatable\Contracts\Translatable;
 use Core45\AiCore\Contracts\AiClient;
+use Core45\AiCore\Contracts\NotifiesOperator;
 use Core45\AiCore\DTOs\ImagePromptPlan;
 use Core45\AiCore\DTOs\ImagePromptRequest;
 use Core45\AiCore\Enums\AiSurface;
+use Core45\AiCore\Enums\NotificationSeverity;
 use Core45\AiCore\ModelRegistry;
 use Core45\AiCore\Services\AiClientFactory;
 use Core45\AiPosts\Concerns\ExtractsArticleContent;
 use Core45\AiPosts\Services\ImageDirectorResolver;
 use Core45\AiPosts\Services\ImagePromptDirector;
-use Filament\Notifications\Notification;
 use Illuminate\Contracts\Queue\ShouldBeUnique;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Database\Eloquent\Model;
@@ -539,20 +540,22 @@ class GeneratePostPhotosJob implements ShouldBeUnique, ShouldQueue
                 $body .= ' '.__('Reason: :reason', ['reason' => Str::limit($this->firstFailureReason, 200)]);
             }
 
-            Notification::make()
-                ->title(__('Photo generation completed'))
-                ->body($body)
-                ->warning()
-                ->sendToDatabase($user);
+            app(NotifiesOperator::class)->notifyOperator(
+                $user,
+                __('Photo generation completed'),
+                $body,
+                NotificationSeverity::Warning,
+            );
 
             return;
         }
 
-        Notification::make()
-            ->title(__('Photos generated for post: :title', ['title' => Str::limit($title, 60)]))
-            ->body(__(':count photos generated and attached to the post.', ['count' => $generated]))
-            ->success()
-            ->sendToDatabase($user);
+        app(NotifiesOperator::class)->notifyOperator(
+            $user,
+            __('Photos generated for post: :title', ['title' => Str::limit($title, 60)]),
+            __(':count photos generated and attached to the post.', ['count' => $generated]),
+            NotificationSeverity::Success,
+        );
     }
 
     public function failed(\Throwable $exception): void

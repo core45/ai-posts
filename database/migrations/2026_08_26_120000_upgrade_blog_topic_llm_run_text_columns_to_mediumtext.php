@@ -33,7 +33,7 @@ return new class extends Migration
 {
     public function up(): void
     {
-        if (! Schema::hasTable('blog_topic_llm_runs')) {
+        if (!Schema::hasTable('blog_topic_llm_runs')) {
             return;
         }
 

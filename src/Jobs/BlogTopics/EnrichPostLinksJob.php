@@ -207,7 +207,10 @@ class EnrichPostLinksJob implements ShouldBeUnique, ShouldQueue
     }
 
     /**
-     * Send enrichment report as Filament notification + email to admins.
+     * Send the enrichment report to the triggering user and to admins.
+     *
+     * Delivery goes through the `ReportsLinkEnrichment` seam rather than a
+     * Filament call, so the package works on any panel or none.
      *
      * @param  array<int, array{url: string, anchorText: string, reason?: string, relevanceScore: float}>  $linkTargets
      * @param  array<int, string>  $warnings
@@ -230,7 +233,7 @@ class EnrichPostLinksJob implements ShouldBeUnique, ShouldQueue
 
         $reporter = app(ReportsLinkEnrichment::class);
 
-        // Send Filament database notification to the triggering user
+        // Notify the user who triggered the run
         $userClass = app(ModelRegistry::class)->getModelClassOrFail('user');
 
         if ($this->userId !== null) {

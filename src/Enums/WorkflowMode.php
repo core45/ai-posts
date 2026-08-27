@@ -4,9 +4,7 @@ declare(strict_types=1);
 
 namespace Core45\AiPosts\Enums;
 
-use Filament\Support\Contracts\HasLabel;
-
-enum WorkflowMode: string implements HasLabel
+enum WorkflowMode: string
 {
     case Automatic = 'automatic';
     case SemiAutomatic = 'semi-automatic';

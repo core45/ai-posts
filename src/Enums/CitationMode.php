@@ -4,9 +4,7 @@ declare(strict_types=1);
 
 namespace Core45\AiPosts\Enums;
 
-use Filament\Support\Contracts\HasLabel;
-
-enum CitationMode: string implements HasLabel
+enum CitationMode: string
 {
     case Render = 'render';
     case Strip = 'strip';

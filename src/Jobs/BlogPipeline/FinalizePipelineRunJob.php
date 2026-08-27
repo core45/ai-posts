@@ -5,12 +5,13 @@ declare(strict_types=1);
 namespace Core45\AiPosts\Jobs\BlogPipeline;
 
 use Astrotomic\Translatable\Contracts\Translatable;
+use Core45\AiCore\Contracts\NotifiesOperator;
+use Core45\AiCore\Enums\NotificationSeverity;
 use Core45\AiCore\ModelRegistry;
 use Core45\AiPosts\Enums\BlogPostPipelineStatus;
 use Core45\AiPosts\Jobs\TranslatePostToLocale;
 use Core45\AiPosts\Models\BlogPostPipelineRun;
 use Core45\AiPosts\Models\BlogProfileLesson;
-use Filament\Notifications\Notification;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
@@ -108,7 +109,7 @@ class FinalizePipelineRunJob implements ShouldQueue
     }
 
     /**
-     * Send a Filament database notification about pipeline completion.
+     * Notify the operator about pipeline completion.
      */
     private function notifyPipelineComplete(BlogPostPipelineRun $run): void
     {
@@ -127,11 +128,12 @@ class FinalizePipelineRunJob implements ShouldQueue
 
         $candidateTitle = $run->candidate->title;
 
-        Notification::make()
-            ->title(__('Blog Post Generated'))
-            ->body(__('Blog post ":title" generated. Ready for review.', ['title' => $candidateTitle]))
-            ->success()
-            ->sendToDatabase($user);
+        app(NotifiesOperator::class)->notifyOperator(
+            $user,
+            __('Blog Post Generated'),
+            __('Blog post ":title" generated. Ready for review.', ['title' => $candidateTitle]),
+            NotificationSeverity::Success,
+        );
     }
 
     /**

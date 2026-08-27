@@ -8,8 +8,6 @@
         "php": "^8.4",
         "astrotomic/laravel-translatable": "^11.17",
         "core45/ai-core": "^0.1",
-        "filament/notifications": "^5.7",
-        "filament/support": "^5.7",
         "laravel/framework": "^13.0",
         "ramsey/uuid": "^4.7",
         "spatie/laravel-medialibrary": "^11.23"

@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Core45\AiPosts\Services\BlogPipeline;
 
+use Core45\AiCore\Contracts\NotifiesOperator;
+use Core45\AiCore\Enums\NotificationSeverity;
 use Core45\AiCore\ModelRegistry;
 use Core45\AiPosts\Enums\BlogPostPipelineStatus;
 use Core45\AiPosts\Enums\WorkflowMode;
@@ -26,7 +28,6 @@ use Core45\AiPosts\Models\BlogTopicCandidate;
 use Core45\AiPosts\Models\BlogTopicProfile;
 use Core45\AiPosts\Models\ContentModule;
 use Core45\AiPosts\Support\HostJobs;
-use Filament\Notifications\Notification;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Bus;
 use Illuminate\Support\Facades\Log;
@@ -598,7 +599,7 @@ class PipelineOrchestratorService
     }
 
     /**
-     * Send a Filament database notification to the user who approved this pipeline run.
+     * Notify the user who approved this pipeline run.
      */
     /**
      * @param  array<string, string>  $bodyParams
@@ -622,22 +623,30 @@ class PipelineOrchestratorService
 
         $translatedBody = __($bodyKey, $bodyParams);
 
-        Notification::make()
-            ->title(__($titleKey))
-            ->body($translatedBody)
-            ->info()
-            ->sendToDatabase($user);
-
-        /** @phpstan-ignore method.notFound */
-        $latest = $user->notifications()->latest()->first();
-
-        if ($latest !== null) {
-            /** @var array<string, mixed> $data */
-            $data = $latest->data;
-            $data['title_key'] = $titleKey;
-            $data['body_key'] = $bodyKey;
-            $data['body_params'] = $bodyParams;
-            $latest->update(['data' => $data]);
-        }
+        // The translation keys travel WITH the notification rather than being
+        // written back into it afterwards.
+        //
+        // This used to send the notification, then re-read
+        // `$user->notifications()->latest()->first()` and patch these three keys
+        // into whatever row came back. That was already racy — two runs
+        // finishing close together would patch each other's row — and it breaks
+        // outright once delivery is behind `NotifiesOperator`: an implementation
+        // that writes no database row (the logging default) would leave `latest()`
+        // pointing at some older, unrelated notification and corrupt it.
+        //
+        // The host reads these back in `DatabaseNotification` to re-translate the
+        // message into the reader's locale instead of the queue worker's, so they
+        // have to be persisted — just not like that.
+        app(NotifiesOperator::class)->notifyOperator(
+            $user,
+            __($titleKey),
+            $translatedBody,
+            NotificationSeverity::Info,
+            [
+                'title_key' => $titleKey,
+                'body_key' => $bodyKey,
+                'body_params' => $bodyParams,
+            ],
+        );
     }
 }

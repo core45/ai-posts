@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace Core45\AiPosts\Jobs\BlogTopics;
 
 use Core45\AiCore\Contracts\AiClient;
+use Core45\AiCore\Contracts\NotifiesOperator;
+use Core45\AiCore\Enums\NotificationSeverity;
 use Core45\AiCore\Exceptions\AiRateLimitedException;
 use Core45\AiCore\Exceptions\AiUnavailableException;
 use Core45\AiCore\ModelRegistry;
@@ -13,7 +15,6 @@ use Core45\AiPosts\Jobs\BlogTopics\Concerns\NotifiesUser;
 use Core45\AiPosts\Models\BlogTopicBatch;
 use Core45\AiPosts\Services\BlogTopics\ResearchService;
 use Core45\AiPosts\Services\BlogTopics\SerpApiTopicEnrichmentService;
-use Filament\Notifications\Notification;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
 use Illuminate\Queue\MaxAttemptsExceededException;
@@ -109,13 +110,14 @@ class GenerateSearchQueriesJob implements ShouldQueue
                         $userClass = app(ModelRegistry::class)->getModelClassOrFail('user');
                         $user = $userClass::find($userId);
                         if ($user !== null) {
-                            Notification::make()
-                                ->title(__('Research failed'))
-                                ->body(__('Research batch #:id failed during search execution.', [
+                            app(NotifiesOperator::class)->notifyOperator(
+                                $user,
+                                __('Research failed'),
+                                __('Research batch #:id failed during search execution.', [
                                     'id' => $batchId,
-                                ]))
-                                ->danger()
-                                ->sendToDatabase($user);
+                                ]),
+                                NotificationSeverity::Danger,
+                            );
                         }
                     }
                 })

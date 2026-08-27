@@ -4,10 +4,7 @@ declare(strict_types=1);
 
 namespace Core45\AiPosts\Enums;
 
-use Filament\Support\Contracts\HasColor;
-use Filament\Support\Contracts\HasLabel;
-
-enum BlogPostPipelineStatus: string implements HasColor, HasLabel
+enum BlogPostPipelineStatus: string
 {
     case Researching = 'researching';
     case Writing = 'writing';

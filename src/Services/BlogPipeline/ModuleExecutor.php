@@ -4,7 +4,9 @@ declare(strict_types=1);
 
 namespace Core45\AiPosts\Services\BlogPipeline;
 
+use Core45\AiCore\Contracts\NotifiesOperator;
 use Core45\AiCore\Enums\AiSurface;
+use Core45\AiCore\Enums\NotificationSeverity;
 use Core45\AiCore\Exceptions\AiRateLimitedException;
 use Core45\AiCore\ModelRegistry;
 use Core45\AiCore\Services\AiClientFactory;
@@ -19,7 +21,6 @@ use Core45\AiPosts\Models\BlogPostPipelineRun;
 use Core45\AiPosts\Models\ContentModule;
 use Core45\AiPosts\Services\BlogPipeline\Modules\AbstractContentModule;
 use Core45\AiPosts\Services\BlogTopics\LlmAuditService;
-use Filament\Notifications\Notification;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Log;
 use Throwable;
@@ -752,13 +753,14 @@ class ModuleExecutor
             return;
         }
 
-        Notification::make()
-            ->title(__('Quality Retry'))
-            ->body(__('Module ":module" needed a final retry after quality failures for ":topic".', [
+        app(NotifiesOperator::class)->notifyOperator(
+            $user,
+            __('Quality Retry'),
+            __('Module ":module" needed a final retry after quality failures for ":topic".', [
                 'module' => $moduleSlug,
                 'topic' => $run->candidate->title,
-            ]))
-            ->warning()
-            ->sendToDatabase($user);
+            ]),
+            NotificationSeverity::Warning,
+        );
     }
 }

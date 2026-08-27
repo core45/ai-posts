@@ -6,6 +6,8 @@ namespace Core45\AiPosts\Jobs\BlogPipeline;
 
 use Astrotomic\Translatable\Contracts\Translatable;
 use Core45\AiCore\Contracts\GeneratesSlugs;
+use Core45\AiCore\Contracts\NotifiesOperator;
+use Core45\AiCore\Enums\NotificationSeverity;
 use Core45\AiCore\ModelRegistry;
 use Core45\AiPosts\Enums\BlogPostPipelineStatus;
 use Core45\AiPosts\Enums\BlogTopicCandidateStatus;
@@ -14,7 +16,6 @@ use Core45\AiPosts\Models\BlogPostPipelineRun;
 use Core45\AiPosts\Services\BlogPipeline\AuthorNameGenerator;
 use Core45\AiPosts\Services\BlogPipeline\LinkVerificationService;
 use Core45\AiPosts\Services\BlogPipeline\PipelineOrchestratorService;
-use Filament\Notifications\Notification;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Database\Eloquent\Model;
@@ -162,14 +163,15 @@ class AssemblePostJob implements ShouldQueue
             return;
         }
 
-        Notification::make()
-            ->title(__('Pipeline Failed'))
-            ->body(__('Assembly failed for ":topic": :error', [
+        app(NotifiesOperator::class)->notifyOperator(
+            $user,
+            __('Pipeline Failed'),
+            __('Assembly failed for ":topic": :error', [
                 'topic' => $this->run->candidate->title,
                 'error' => $exception->getMessage(),
-            ]))
-            ->danger()
-            ->sendToDatabase($user);
+            ]),
+            NotificationSeverity::Danger,
+        );
     }
 
     /**

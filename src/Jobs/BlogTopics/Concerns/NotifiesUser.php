@@ -4,8 +4,9 @@ declare(strict_types=1);
 
 namespace Core45\AiPosts\Jobs\BlogTopics\Concerns;
 
+use Core45\AiCore\Contracts\NotifiesOperator;
+use Core45\AiCore\Enums\NotificationSeverity;
 use Core45\AiCore\ModelRegistry;
-use Filament\Notifications\Notification;
 use Illuminate\Support\Str;
 
 trait NotifiesUser
@@ -22,17 +23,11 @@ trait NotifiesUser
             return;
         }
 
-        $notification = Notification::make()
-            ->title($title)
-            ->body(Str::limit($body, 500));
-
-        $notification = match ($status) {
-            'success' => $notification->success(),
-            'warning' => $notification->warning(),
-            'danger' => $notification->danger(),
-            default => $notification->info(),
-        };
-
-        $notification->sendToDatabase($user);
+        app(NotifiesOperator::class)->notifyOperator(
+            $user,
+            $title,
+            Str::limit($body, 500),
+            NotificationSeverity::fromStatus($status),
+        );
     }
 }

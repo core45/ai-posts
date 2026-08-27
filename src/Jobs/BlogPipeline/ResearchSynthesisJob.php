@@ -5,7 +5,9 @@ declare(strict_types=1);
 namespace Core45\AiPosts\Jobs\BlogPipeline;
 
 use Core45\AiCore\Contracts\AiClient;
+use Core45\AiCore\Contracts\NotifiesOperator;
 use Core45\AiCore\Enums\AiSurface;
+use Core45\AiCore\Enums\NotificationSeverity;
 use Core45\AiCore\ModelRegistry;
 use Core45\AiCore\Services\AiClientFactory;
 use Core45\AiCore\Traits\LogsAIOperations;
@@ -15,7 +17,6 @@ use Core45\AiPosts\Models\BlogPostPipelineRun;
 use Core45\AiPosts\Services\BlogPipeline\PipelineOrchestratorService;
 use Core45\AiPosts\Services\BlogTopics\LlmAuditService;
 use Core45\AiPosts\Support\HostJobs;
-use Filament\Notifications\Notification;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
 use Illuminate\Support\Facades\Log;
@@ -197,14 +198,15 @@ class ResearchSynthesisJob implements ShouldQueue
             return;
         }
 
-        Notification::make()
-            ->title(__('Pipeline Failed'))
-            ->body(__('Research synthesis failed for ":topic": :error', [
+        app(NotifiesOperator::class)->notifyOperator(
+            $user,
+            __('Pipeline Failed'),
+            __('Research synthesis failed for ":topic": :error', [
                 'topic' => $this->run->candidate->title,
                 'error' => $exception->getMessage(),
-            ]))
-            ->danger()
-            ->sendToDatabase($user);
+            ]),
+            NotificationSeverity::Danger,
+        );
     }
 
     /**
