@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Core45\AiPosts;
 
+use Core45\AiCore\Support\PromptKeyRegistry;
 use Illuminate\Support\ServiceProvider;
 
 /**
@@ -38,6 +39,32 @@ class AiPostsServiceProvider extends ServiceProvider
         // is why the shipped file is the source of truth rather than a
         // convenience.
         $this->mergeConfigFrom(__DIR__.'/../config/blog-pipeline.php', 'blog-pipeline');
+
+        $this->registerPromptKeys();
+    }
+
+    /**
+     * The two prompt keys this package owns, from `PostContentRewriteService`'s
+     * `getPromptOverrideKey()` / `getSeoPromptOverrideKey()`.
+     *
+     * They used to be enumerated in `ai-core`'s `availablePromptKeys()` along
+     * with every other domain's, which is the leak D14 names. `ai-core` now
+     * holds the registry and knows none of its contents.
+     */
+    private function registerPromptKeys(): void
+    {
+        $this->app->resolving(PromptKeyRegistry::class, static function (PromptKeyRegistry $registry): void {
+            $registry->registerMany([
+                'post_rewrite_system' => [
+                    'label' => 'Post Content Rewrite System Prompt',
+                    'template' => 'rewrite.field_rewrite',
+                ],
+                'post_seo_system' => [
+                    'label' => 'Post SEO Generation System Prompt',
+                    'template' => 'rewrite.seo_field',
+                ],
+            ]);
+        });
     }
 
     public function boot(): void
