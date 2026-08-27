@@ -2,7 +2,6 @@
     "name": "core45/ai-posts",
     "description": "Blog AI stack: BlogTopics research/generation pipeline, BlogPipeline, post rewrite, translation and photo generation.",
     "type": "library",
-    "version": "0.1.0",
     "license": "MIT",
     "repositories": [
         {
