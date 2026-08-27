@@ -46,7 +46,7 @@ Ships services and jobs only (D7): the host keeps all Filament and Livewire UI,
 resolves these classes from the container, and schedules the jobs.
 
 **This package owns the blog domain schema.** Its 13 models, their factories
-and the 25 migrations that create and evolve their tables all ship here. The
+and the 26 migrations that create and evolve their tables all ship here. The
 `ai_*` tables ship with `core45/ai-core`. The host keeps the Filament UI and
 schedules the jobs.
 
