@@ -37,5 +37,8 @@
         "sort-packages": true
     },
     "minimum-stability": "dev",
-    "prefer-stable": true
+    "prefer-stable": true,
+    "suggest": {
+        "core45/ai-posts-filament": "Filament UI for the blog pipeline: the pipeline-run resource, the Manage Post Pipeline page, and the AI rewrite / photo / internal-link actions."
+    }
 }
