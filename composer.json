@@ -1,0 +1,43 @@
+{
+    "name": "core45/ai-posts",
+    "description": "Blog AI stack: BlogTopics research/generation pipeline, BlogPipeline, post rewrite, translation and photo generation.",
+    "type": "library",
+    "version": "0.1.0",
+    "license": "MIT",
+    "require": {
+        "php": "^8.4",
+        "astrotomic/laravel-translatable": "^11.17",
+        "core45/ai-core": "^0.1",
+        "filament/notifications": "^5.7",
+        "filament/support": "^5.7",
+        "laravel/framework": "^13.0",
+        "ramsey/uuid": "^4.7",
+        "spatie/laravel-medialibrary": "^11.23"
+    },
+    "autoload": {
+        "psr-4": {
+            "Core45\\AiPosts\\": "src/",
+            "Core45\\AiPosts\\Database\\Factories\\": "database/factories/"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "Core45\\AiPosts\\Tests\\": "tests/"
+        }
+    },
+    "require-dev": {
+        "orchestra/testbench": "^11.0"
+    },
+    "extra": {
+        "laravel": {
+            "providers": [
+                "Core45\\AiPosts\\AiPostsServiceProvider"
+            ]
+        }
+    },
+    "config": {
+        "sort-packages": true
+    },
+    "minimum-stability": "dev",
+    "prefer-stable": true
+}

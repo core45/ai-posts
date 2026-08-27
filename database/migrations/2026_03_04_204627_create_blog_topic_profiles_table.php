@@ -1,0 +1,33 @@
+<?php
+
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
+
+return new class extends Migration
+{
+    /**
+     * Run the migrations.
+     */
+    public function up(): void
+    {
+        Schema::create('blog_topic_profiles', function (Blueprint $table) {
+            $table->id();
+            $table->string('name');
+            $table->json('profile_json')->nullable();
+            $table->json('seed_keywords')->nullable();
+            $table->json('excluded_topics')->nullable();
+            $table->text('constraints')->nullable();
+            $table->timestamp('last_refreshed_at')->nullable();
+            $table->timestamps();
+        });
+    }
+
+    /**
+     * Reverse the migrations.
+     */
+    public function down(): void
+    {
+        Schema::dropIfExists('blog_topic_profiles');
+    }
+};
