@@ -4,11 +4,13 @@ declare(strict_types=1);
 
 namespace Core45\AiPosts\Tests;
 
+use Core45\AiCore\Contracts\UnconfiguredSeam;
 use Core45\AiPosts\Contracts\Seo\ResolvesUrlToModel;
 use Core45\AiPosts\Contracts\Seo\ScansInternalLinks;
 use Core45\AiPosts\DTOs\Seo\InternalLinkScanResult;
 use Core45\AiPosts\Services\BlogPipeline\LinkVerificationService;
 use Core45\AiPosts\Services\BlogTopics\InternalLinkEnricherService;
+use Core45\AiPosts\Support\Seo\NullInternalLinkScanner;
 use Core45\AiPosts\Support\Seo\NullUrlToModelResolver;
 use PHPUnit\Framework\Attributes\Test;
 
@@ -109,6 +111,50 @@ class UnconfiguredResolverDoesNotStripLinksTest extends TestCase
 
         $this->assertStringContainsString('href="https://example.test/blog/one"', $result['html']);
         $this->assertStringContainsString('href="https://example.test/blog/two"', $result['html']);
+    }
+
+    /**
+     * The scanner's own default carries the marker too, for a different reason
+     * from the resolver's.
+     *
+     * `NullUrlToModelResolver` is marked because a caller DESTROYS on its
+     * answer. `NullInternalLinkScanner` is marked because a caller ATTESTS to
+     * its answer: `EnrichPostLinksJob` writes `internal_links_outbound` and
+     * stamps `links_counted_at` with `now()`, which claims a count was taken.
+     * Stamping that over "nobody asked me to count" would silently regress a
+     * real, previously-measured count to 0 with a fresh timestamp vouching for
+     * it.
+     *
+     * Both are the same rule: an unconfigured seam's emptiness is an absence of
+     * information, and only code that merely SKIPS work may treat it as an
+     * answer.
+     */
+    #[Test]
+    public function the_defaults_whose_emptiness_is_acted_on_carry_the_marker(): void
+    {
+        $this->assertInstanceOf(UnconfiguredSeam::class, new NullUrlToModelResolver);
+        $this->assertInstanceOf(UnconfiguredSeam::class, new NullInternalLinkScanner);
+    }
+
+    /**
+     * A skip must be reported, not silent. An operator who installed the
+     * packages expecting link verification has to be able to find out it did
+     * not happen — otherwise "no broken links found" and "nothing was checked"
+     * look identical in the output.
+     */
+    #[Test]
+    public function the_skip_is_reported_rather_than_passing_quietly(): void
+    {
+        $result = (new LinkVerificationService(
+            $this->scannerFindingBothLinks(),
+            new NullUrlToModelResolver,
+        ))->verify(self::HTML, 'en');
+
+        $warnings = implode("\n", $result['warnings']);
+
+        $this->assertStringContainsString('left unchecked', $warnings);
+        $this->assertStringContainsString(ResolvesUrlToModel::class, $warnings);
+        $this->assertStringNotContainsString('Broken internal link removed', $warnings);
     }
 
     /**

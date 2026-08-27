@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Core45\AiPosts\Jobs\BlogTopics;
 
 use Astrotomic\Translatable\Contracts\Translatable;
+use Core45\AiCore\Contracts\UnconfiguredSeam;
 use Core45\AiCore\ModelRegistry;
 use Core45\AiCore\Traits\LogsAIOperations;
 use Core45\AiPosts\Contracts\Seo\ReportsLinkEnrichment;
@@ -183,12 +184,26 @@ class EnrichPostLinksJob implements ShouldBeUnique, ShouldQueue
         $translation->save();
 
         // Update SeoIndexable link counts (errata E2: use DTO property)
-        $appUrl = (string) config('app.url');
-        $scanResult = $linkScanner->scanContent($html, $appUrl);
-        $seoIndexable->update([
-            'internal_links_outbound' => $scanResult->internalLinkCount,
-            'links_counted_at' => now(),
-        ]);
+        //
+        // `links_counted_at` is an attestation, not a cache key: it says a
+        // count was actually taken at that moment. An unconfigured scanner
+        // reports zero links for any document, so writing its answer would
+        // stamp "we counted" over a non-answer — and would silently regress a
+        // real, previously-measured count to 0 in any host that lost its
+        // binding. Skipping leaves the last genuine measurement standing.
+        if (!$linkScanner instanceof UnconfiguredSeam) {
+            $appUrl = (string) config('app.url');
+            $scanResult = $linkScanner->scanContent($html, $appUrl);
+            $seoIndexable->update([
+                'internal_links_outbound' => $scanResult->internalLinkCount,
+                'links_counted_at' => now(),
+            ]);
+        } else {
+            Log::info('EnrichPostLinksJob: internal link count not updated', [
+                'post_id' => $this->post->getKey(),
+                'reason' => 'No '.ScansInternalLinks::class.' implementation is bound, so no count was taken.',
+            ]);
+        }
 
         // Step 4: Dispatch SEO analysis (errata E11)
         if ($seoJob = HostJobs::resolve('analyze_seo')) {

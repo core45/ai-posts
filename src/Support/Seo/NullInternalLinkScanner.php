@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Core45\AiPosts\Support\Seo;
 
+use Core45\AiCore\Contracts\UnconfiguredSeam;
 use Core45\AiPosts\Contracts\Seo\ScansInternalLinks;
 use Core45\AiPosts\DTOs\Seo\InternalLinkScanResult;
 
@@ -30,8 +31,16 @@ use Core45\AiPosts\DTOs\Seo\InternalLinkScanResult;
  *
  * A host that wants real link counts/removal binds its own implementation;
  * `bindIf` leaves it alone.
+ *
+ * It is an `UnconfiguredSeam` because one caller does NOT merely skip work on
+ * an empty result: `EnrichPostLinksJob` writes the count into
+ * `seo_indexables.internal_links_outbound` and stamps `links_counted_at` with
+ * `now()`. That stamp is an attestation — "as of this moment, we counted" —
+ * and stamping it over a non-answer is worse than not writing at all, because
+ * a host that later loses its bound scanner would see a real count silently
+ * regress to 0 with a fresh timestamp vouching for it.
  */
-final class NullInternalLinkScanner implements ScansInternalLinks
+final class NullInternalLinkScanner implements ScansInternalLinks, UnconfiguredSeam
 {
     public function scanContent(string $htmlContent, ?string $baseUrl = null): InternalLinkScanResult
     {

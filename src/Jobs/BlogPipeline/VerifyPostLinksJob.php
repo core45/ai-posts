@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Core45\AiPosts\Jobs\BlogPipeline;
 
 use Astrotomic\Translatable\Contracts\Translatable;
+use Core45\AiCore\Contracts\UnconfiguredSeam;
 use Core45\AiCore\ModelRegistry;
 use Core45\AiPosts\Contracts\Seo\ResolvesUrlToModel;
 use Illuminate\Bus\Queueable;
@@ -80,7 +81,7 @@ class VerifyPostLinksJob implements ShouldQueue
     /**
      * Check all internal links in a post's translated main_text.
      *
-     * @return array{checked_count: int, broken_count: int, broken_urls: array<int, string>}
+     * @return array{checked_count: int, broken_count: int, broken_urls: array<int, string>, unverified_count: int}
      */
     private function checkPostLinks(Model $post, ResolvesUrlToModel $urlModelResolver): array
     {
@@ -90,6 +91,7 @@ class VerifyPostLinksJob implements ShouldQueue
         $supportedLocales = config('laravellocalization.supportedLocales', []);
         $brokenUrls = [];
         $checkedCount = 0;
+        $unverifiedCount = 0;
 
         foreach (array_keys($supportedLocales) as $locale) {
             $translation = $post instanceof Translatable ? $post->translate((string) $locale) : null;
@@ -99,6 +101,18 @@ class VerifyPostLinksJob implements ShouldQueue
             }
 
             $links = $this->extractInternalLinks((string) $translation->main_text, $appUrl);
+
+            // An unconfigured resolver answers `null` for every URL, so running
+            // the loop below would report every internal link of every active
+            // post as broken, on a schedule. This job writes nothing, so that
+            // is not data loss — it is a false-alarm generator that sends an
+            // operator hunting for content problems that do not exist. See
+            // Core45\AiCore\Contracts\UnconfiguredSeam.
+            if ($urlModelResolver instanceof UnconfiguredSeam) {
+                $unverifiedCount += count($links);
+
+                continue;
+            }
 
             foreach ($links as $url) {
                 $checkedCount++;
@@ -118,10 +132,23 @@ class VerifyPostLinksJob implements ShouldQueue
             ]);
         }
 
+        // Reported at info, not warning: nothing is wrong with the content, and
+        // the operator this job exists to inform should not learn about a
+        // missing binding through an alarm about their posts.
+        if ($unverifiedCount > 0) {
+            Log::info('VerifyPostLinksJob: links left unverified', [
+                'post_id' => $post->getKey(),
+                'unverified_count' => $unverifiedCount,
+                'reason' => 'No '.ResolvesUrlToModel::class.' implementation is bound, so this '
+                    .'application cannot tell a broken link from a valid one.',
+            ]);
+        }
+
         return [
             'checked_count' => $checkedCount,
             'broken_count' => count($brokenUrls),
             'broken_urls' => $brokenUrls,
+            'unverified_count' => $unverifiedCount,
         ];
     }
 
