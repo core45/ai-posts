@@ -5,7 +5,9 @@ The blog AI stack: BlogTopics research and generation, the BlogPipeline
 `TranslatePostToLocale`, `GeneratePostPhotosJob`, FAQ writing, internal and
 external link enrichment, and the image prompt director.
 
-Part of the phaseb AI extraction. As-built reference: `docs/AI_PACKAGES.md`.
+Developed in the `core45/ai-packages` monorepo; this repository is a read-only
+split of it. The monorepo README describes how the packages relate to each
+other.
 
 ## ⚠️ Not reusable outside phaseb yet
 
