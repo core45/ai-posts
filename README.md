@@ -56,12 +56,46 @@ keys migrations by basename with the host path taking precedence — so the
 published copy would win and every later package upgrade to those files would
 be silently discarded.
 
-## Host requirements
+## How a host application integrates this
 
 The consuming application must supply the host services this package calls
 (`SlugGenerator`, `InternalLinkScannerService`, the SerpApi and Search Console
 services, and so on). The blog models, enums and DTOs are no longer among them
 — they ship here.
+
+### Contracts the host must bind
+
+`AiPostsServiceProvider` binds nothing — no `bind`/`bindIf`/`singleton`/
+`scoped` call exists in it at all, only the two `mergeConfigFrom()` calls
+below. Every contract this package defines, and every `ai-core` contract its
+own services resolve from the container, is left for the host to bind.
+Resolving any of these unbound throws a `BindingResolutionException` naming
+the interface at the moment that code path runs.
+
+**Defined here (`Core45\AiPosts\Contracts\`):**
+
+| Contract | For |
+|---|---|
+| `Seo\SearchesSerp` | SERP search execution |
+| `Seo\ProvidesTopicTrends` | trending topics + autocomplete suggestions |
+| `Seo\ProvidesKeywordMetrics` | keyword difficulty scoring |
+| `Seo\TracksKeywordRankings` | keyword rank tracking (e.g. Wincher) |
+| `Seo\ProvidesSearchAnalytics` | search analytics (e.g. Google Search Console) |
+| `Seo\ProvidesBingQueryStats` | Bing Webmaster query stats |
+| `Seo\SuggestsInternalLinks` | internal-link suggestions for an indexable model |
+| `Seo\ScansInternalLinks` | extracting internal/external links from HTML |
+| `Seo\ResolvesUrlToModel` | resolving a URL back to a host model reference |
+| `Seo\ReportsLinkEnrichment` | delivering a link-enrichment report to a recipient |
+| `BlogTopics\SearchResearchProvider` | the topic-research web-search backend; four implementations (SerpApi, grounded, composite, mock) ship in `Services\BlogTopics`, but the host still binds the interface to the one it wants |
+
+**Defined in `core45/ai-core` but only ever resolved from this package's own
+services**, so installing `ai-posts` makes binding them mandatory even though
+`ai-core` itself never requires them:
+
+| Contract | Resolved by |
+|---|---|
+| `Core45\AiCore\Contracts\ProvidesMandatoryWords` | `Services\BlogTopics\BlogPostWriterService`, `Services\BlogTopics\BlogFaqWriterService`, `Services\BlogPipeline\Modules\DynamicContentModule` |
+| `Core45\AiCore\Contracts\ObservesAiContracts` | `Services\BlogPipeline\Modules\DynamicContentModule` |
 
 ### Registered models
 
