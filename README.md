@@ -382,9 +382,33 @@ naming the missing key — it does not fall back to a guessed class.
 Written down rather than left implicit, because each one is a runtime fatal for
 the first host that does not meet it:
 
-All of these are pinned by `tests/Feature/Packages/HostObligationsTest.php`, so
-a host that stops satisfying one fails a test rather than a request. Add to both
-this list and that test in the same commit as the code that needs the member.
+These are duck-typed on purpose: the package takes `Model`, never your concrete
+class, so nothing in the type system checks them. That means each one is a
+runtime fatal — a PHP `Error`, which the surrounding `catch (\Exception …)`
+blocks do not catch — for the first host that does not meet it.
+
+**A test that pins all of them ships with `ai-core`.** Copy it into your suite:
+
+```bash
+cp vendor/core45/ai-core/stubs/HostObligationsTest.php.stub \
+   tests/Feature/HostObligationsTest.php
+```
+
+It is a data-driven Pest file with five cases — relations, instance methods,
+static calls and scopes, columns, and derived attributes — and every entry is
+keyed by a `config('ai.models')` REGISTRY KEY rather than a class name, so it
+resolves whatever classes *you* registered. That is why it can ship at all, and
+why it has to be copied rather than run from inside the package: only your
+application knows what is in the registry.
+
+One thing it gets right that a naive version does not: `method_exists()` alone
+is not a sufficient check. It returns false for an Eloquent scope (`active()`
+is `scopeActive`) and for a plain column read as a property, so a
+`method_exists`-only gate reports healthy members as missing. Each kind is
+checked the way it actually resolves.
+
+Add to both this list and your copy of that test in the same commit as the code
+that needs the member.
 
 **`post`**
 
