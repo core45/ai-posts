@@ -374,8 +374,9 @@ Every host model the package touches is resolved through
 package names no host class. Keys it reads: `post`, `post_translation`, `user`,
 `product`, `category`, `product_translation`,
 `product_category_translation`, `tag`, `faq`, `seo_indexable`, `image_style`,
-`image_director_profile`, `content_archetype`, `translation_lock`.
+`image_director_profile`, `content_archetype`, `translation_lock`, `internal_link_click`.
 
+The blog pipeline’s internal-link enrichment (`Core45\AiPosts\Services\BlogPipeline\InternalLinkContextBuilder`) additionally reads the `internal_link_click` registry key to build click-analytics-aware link targets; register it to the host’s click model or that phase throws `ModelNotFoundException` at `getModelClassOrFail('internal_link_click')`. The research half runs without it (see the end-to-end test, which pauses before assembly).
 A key the package reads but the host has not configured throws at the seam,
 naming the missing key — it does not fall back to a guessed class.
 
