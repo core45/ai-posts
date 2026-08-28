@@ -6,19 +6,22 @@ namespace Core45\AiPosts\Tests\Fixtures;
 
 use Astrotomic\Translatable\Contracts\Translatable as TranslatableContract;
 use Astrotomic\Translatable\Translatable;
+use Core45\AiCore\Contracts\ProvidesSeoIndexable;
+use Core45\AiCore\Models\Concerns\HasSeoIndexable;
+use Core45\AiPosts\Models\BlogTopicCandidate;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 
 /**
- * The minimum host `Post` `PostContentRewriteService` can run against.
- *
- * Everything on it is here because the service (or the abstract base in
- * ai-core) actually reaches for it — see the discovery list in
- * `HostAppRewritesAPostEndToEndTest`.
+ * The minimum host `Post` `PostContentRewriteService` / blog pipeline can run
+ * against. Everything on it is here because the service (or the abstract base
+ * in ai-core) actually reaches for it.
  */
-class Post extends Model implements TranslatableContract
+class Post extends Model implements ProvidesSeoIndexable, TranslatableContract
 {
+    use HasSeoIndexable;
     use Translatable;
 
     /** @var array<int, string> */
@@ -68,5 +71,16 @@ class Post extends Model implements TranslatableContract
     public function productCategory(): BelongsTo
     {
         return $this->belongsTo(ProductCategory::class);
+    }
+
+    /**
+     * Read by the translation path to decide whether citation-preservation
+     * instructions are required.
+     *
+     * @return HasOne<BlogTopicCandidate, $this>
+     */
+    public function blogTopicCandidate(): HasOne
+    {
+        return $this->hasOne(BlogTopicCandidate::class);
     }
 }
